@@ -1,0 +1,39 @@
+services:
+  # Единый сервис для всего NeonCasino
+  - type: web
+    name: neoncasino
+    env: python
+    buildCommand: |
+      # Устанавливаем Python зависимости
+      cd backend
+      pip install -r requirements-prod.txt
+      # Устанавливаем Node.js зависимости и собираем Frontend
+      cd ../frontend
+      npm install
+      npm run build
+      # Возвращаемся в backend
+      cd ../backend
+    startCommand: |
+      # Собираем статические файлы
+      python manage.py collectstatic --noinput
+      # Применяем миграции
+      python manage.py migrate
+      # Запускаем Django + Frontend через один порт
+      python manage.py runserver 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: neoncasino.settings
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_CHAT_ID
+        sync: false
+      - key: TELEGRAM_MANAGER_CHAT_ID
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
