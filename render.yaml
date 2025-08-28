@@ -1,0 +1,84 @@
+services:
+  # Backend Django API
+  - type: web
+    name: neoncasino-backend
+    env: python
+    buildCommand: |
+      cd backend
+      pip install -r requirements-prod.txt
+      cd ../frontend
+      npm install
+      npm run build
+    startCommand: |
+      cd backend
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+      gunicorn neoncasino.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: neoncasino.settings
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_CHAT_ID
+        sync: false
+      - key: TELEGRAM_MANAGER_CHAT_ID
+        sync: false
+
+  # Frontend Next.js
+  - type: web
+    name: neoncasino-frontend
+    env: node
+    buildCommand: |
+      npm install
+      npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0
+      - key: NEXT_PUBLIC_API_URL
+        value: https://neoncasino-backend.onrender.com
+      - key: NEXT_PUBLIC_BOT_USERNAME
+        sync: false
+
+  # Telegram Bot
+  - type: worker
+    name: neoncasino-bot
+    env: python
+    buildCommand: |
+      cd backend
+      pip install -r requirements-prod.txt
+    startCommand: |
+      cd backend
+      python manage.py run_bot
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: neoncasino.settings
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_CHAT_ID
+        sync: false
+      - key: TELEGRAM_MANAGER_CHAT_ID
+        sync: false
+
+  # Redis (для Celery и кеширования)
+  - type: redis
+    name: neoncasino-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: neoncasino-db
+    databaseName: neoncasino
+    user: neoncasino
