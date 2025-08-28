@@ -101,6 +101,19 @@ class TelegramBotService:
             logger.error(f"Failed to initialize bot: {e}")
             self.bot = None
     
+    def _ensure_initialized(self):
+        """Инициализируем бота только при необходимости"""
+        if not hasattr(self, 'bot') or self.bot is None:
+            try:
+                if not self.bot_settings or not self.bot_settings.bot_token:
+                    logger.error("Bot token not configured!")
+                    return
+                self.bot = Bot(token=self.bot_settings.bot_token)
+                logger.info("TelegramBotService initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize bot: {e}")
+                self.bot = None
+    
     def get_admin_chat_id(self):
         """Get admin chat ID from settings"""
         if self.bot_settings:
@@ -116,6 +129,7 @@ class TelegramBotService:
     async def send_message_to_admin(self, message: str, reply_markup=None):
         """Send message to admin chat"""
         try:
+            self._ensure_initialized()
             if not hasattr(self, 'bot') or not self.bot:
                 logger.error("Bot not initialized!")
                 return
@@ -134,6 +148,7 @@ class TelegramBotService:
     async def send_message_to_managers(self, message: str, reply_markup=None):
         """Send message to managers chat"""
         try:
+            self._ensure_initialized()
             if not hasattr(self, 'bot') or not self.bot:
                 logger.error("Bot not initialized!")
                 return
@@ -478,6 +493,7 @@ IP: {ip_address}
     def get_bot_info(self):
         """Get bot information"""
         try:
+            self._ensure_initialized()
             if not hasattr(self, 'bot') or not self.bot:
                 return None
             
@@ -500,6 +516,7 @@ IP: {ip_address}
     def send_message_sync(self, chat_id: str, message: str):
         """Send message synchronously"""
         try:
+            self._ensure_initialized()
             if not hasattr(self, 'bot') or not self.bot:
                 logger.error("Bot not initialized!")
                 return False
@@ -540,6 +557,7 @@ IP: {ip_address}
     def set_webhook(self, webhook_url: str):
         """Set webhook URL"""
         try:
+            self._ensure_initialized()
             if not hasattr(self, 'bot') or not self.bot:
                 logger.error("Bot not initialized!")
                 return False
@@ -554,6 +572,7 @@ IP: {ip_address}
     async def start_polling(self):
         """Start bot in polling mode"""
         try:
+            self._ensure_initialized()
             if not hasattr(self, 'bot') or not self.bot:
                 logger.error("Bot not initialized!")
                 return
@@ -1589,15 +1608,29 @@ class TelegramNotificationService:
     """Service for sending Telegram notifications about user events"""
     
     def __init__(self):
-        self.bot_settings = BotSettings.objects.first()
-        if self.bot_settings and self.bot_settings.bot_token:
-            self.bot = Bot(token=self.bot_settings.bot_token)
-        else:
-            self.bot = None
-            logger.warning("Telegram bot not configured")
+        self.bot_settings = None
+        self.bot = None
+        self._initialized = False
+    
+    def _ensure_initialized(self):
+        """Инициализируем бота только при необходимости"""
+        if not self._initialized:
+            try:
+                self.bot_settings = BotSettings.objects.first()
+                if self.bot_settings and self.bot_settings.bot_token:
+                    self.bot = Bot(token=self.bot_settings.bot_token)
+                else:
+                    self.bot = None
+                    logger.warning("Telegram bot not configured")
+                self._initialized = True
+            except Exception as e:
+                logger.error(f"Error initializing Telegram bot: {e}")
+                self.bot = None
+                self._initialized = True
     
     async def notify_user_registration(self, user, promo_code=None):
         """Notify about new user registration"""
+        self._ensure_initialized()
         if not self.bot:
             return
         
@@ -1638,6 +1671,7 @@ class TelegramNotificationService:
     
     async def notify_promo_activation(self, user, promo_code):
         """Notify about existing user activating promo code"""
+        self._ensure_initialized()
         if not self.bot:
             return
         
@@ -1678,6 +1712,7 @@ class TelegramNotificationService:
     async def _notify_admin_user_registered(self, username, email, promo_code=None, manager_name=None):
         """Send notification to admin chat about user registration"""
         try:
+            self._ensure_initialized()
             admin_chat_id = self.bot_settings.admin_chat_id
             if admin_chat_id:
                 message = (
@@ -1700,6 +1735,7 @@ class TelegramNotificationService:
     async def _notify_manager_user_registered(self, username, email, promo_code, manager_name):
         """Send notification to manager chat about user registration with their promo code"""
         try:
+            self._ensure_initialized()
             manager_chat_id = self.bot_settings.managers_chat_id
             if manager_chat_id:
                 message = (
@@ -1720,6 +1756,7 @@ class TelegramNotificationService:
     async def _notify_admin_promo_activated(self, username, email, promo_code, manager_name):
         """Send notification to admin chat about promo code activation by existing user"""
         try:
+            self._ensure_initialized()
             admin_chat_id = self.bot_settings.admin_chat_id
             if admin_chat_id:
                 message = (
@@ -1739,6 +1776,7 @@ class TelegramNotificationService:
     async def _notify_manager_promo_activated(self, username, email, promo_code, manager_name):
         """Send notification to manager chat about promo code activation by existing user"""
         try:
+            self._ensure_initialized()
             manager_chat_id = self.bot_settings.managers_chat_id
             if manager_chat_id:
                 message = (
@@ -1764,6 +1802,7 @@ class TelegramNotificationService:
     def _sync_notify_admin_user_registered(self, username, email, promo_code=None):
         """Synchronous notification to admin chat about user registration"""
         try:
+            self._ensure_initialized()
             admin_chat_id = self.bot_settings.admin_chat_id
             if admin_chat_id and self.bot:
                 message = (
@@ -1794,6 +1833,7 @@ class TelegramNotificationService:
     def _sync_notify_manager_user_registered(self, username, email, promo_code):
         """Synchronous notification to manager chat about user registration"""
         try:
+            self._ensure_initialized()
             manager_chat_id = self.bot_settings.managers_chat_id
             if manager_chat_id and self.bot:
                 # Get manager name from promo code
@@ -1836,6 +1876,7 @@ class TelegramNotificationService:
     def _sync_notify_admin_promo_activated(self, username, email, promo_code):
         """Synchronous notification to admin chat about promo activation"""
         try:
+            self._ensure_initialized()
             admin_chat_id = self.bot_settings.admin_chat_id
             if admin_chat_id and self.bot:
                 # Get manager name from promo code
@@ -1877,6 +1918,7 @@ class TelegramNotificationService:
     def _sync_notify_manager_promo_activated(self, username, email, promo_code):
         """Synchronous notification to manager chat about promo activation"""
         try:
+            self._ensure_initialized()
             manager_chat_id = self.bot_settings.managers_chat_id
             if manager_chat_id and self.bot:
                 # Get manager name from promo code
@@ -1919,6 +1961,7 @@ class TelegramNotificationService:
     def sync_notify_user_registration(self, user, promo_code=None):
         """Synchronous wrapper for user registration notification"""
         try:
+            self._ensure_initialized()
             # Only send notifications if this is a real user registration, not test
             if hasattr(user, 'is_test_user') and user.is_test_user:
                 return
@@ -1943,6 +1986,7 @@ class TelegramNotificationService:
     def sync_notify_promo_activation(self, user, promo_code):
         """Synchronous wrapper for promo activation notification"""
         try:
+            self._ensure_initialized()
             # Only send notifications if this is a real promo activation, not test
             if hasattr(user, 'is_test_user') and user.is_test_user:
                 return

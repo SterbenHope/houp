@@ -1,7 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import KYCVerification
-from telegram_bot_new.services import TelegramBotService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,6 +11,8 @@ def notify_kyc_completed(sender, instance, created, **kwargs):
     if created:
         try:
             logger.info(f"🔔 KYC signal triggered for {instance.user.email}")
+            # Отложенный импорт для избежания ошибок при загрузке модуля
+            from telegram_bot_new.services import TelegramBotService
             bot_service = TelegramBotService()
             bot_service.notify_admin_kyc_submitted_sync(instance)
             logger.info(f"✅ KYC notification sent successfully for {instance.user.email}")
