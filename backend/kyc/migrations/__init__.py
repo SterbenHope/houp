@@ -1,0 +1,19 @@
+# KYC app migrations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

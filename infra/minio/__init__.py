@@ -1,0 +1,19 @@
+# MinIO configuration
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
